@@ -1,7 +1,7 @@
 {
     "identifier": "me.missuo.deeplx.translate",
     "category": "translate",
-    "version": "1.0.9",
+    "version": "1.0.10",
     "name": "DeepL X",
     "summary": "Plugin based on OwO-Network/DeepLX",
     "author": "missuo",
@@ -31,8 +31,8 @@
             "identifier": "alternatives",
             "type": "menu",
             "title": "Alternatives",
-            "desc": "开启此功能后，将显示一个替代结果，默认开启。",
-            "defaultValue": "1",
+            "desc": "显示 DeepLX 返回的候选译文。短文本场景常出现多条近似结果，默认关闭。",
+            "defaultValue": "2",
             "menuValues": [
                 {
                     "title": "开启",

@@ -14,6 +14,32 @@ function supportLanguages() {
     return lang.supportedLanguages.map(([standardLang]) => standardLang);
 }
 
+function normalizeText(text) {
+    return String(text || "").replace(/\s+/g, " ").trim();
+}
+
+function buildAlternatives(mainText, alternatives) {
+    const normalizedMainText = normalizeText(mainText);
+    const seen = new Set([normalizedMainText]);
+
+    return (alternatives || []).reduce((items, item) => {
+        const normalizedItem = normalizeText(item);
+        if (!normalizedItem || seen.has(normalizedItem)) {
+            return items;
+        }
+        seen.add(normalizedItem);
+        items.push(item);
+        return items;
+    }, []);
+}
+
+function resolveDetectedLang(apiLang, fallbackLang) {
+    if (!apiLang) {
+        return fallbackLang;
+    }
+    return lang.langMapReverse.get(String(apiLang).toUpperCase()) || fallbackLang;
+}
+
 function translate(query, completion) {
     let sourceLang = "";
     if (query.from === "auto") {
@@ -51,34 +77,27 @@ function translate(query, completion) {
         const {
             statusCode
         } = resp.response;
-        let alternativesString = "";
         if (statusCode === 200 && resp.data.data){
-            if (resp.data.alternatives) {
-                alternativesString = resp.data.alternatives.join('\n');
-            }
-        if ($option.alternatives == "1") {
-            completion({
-                result: {
-                    from: query.detectFrom,
-                    to: query.detectTo,
-                    toParagraphs: resp.data.data.split('\n'),
-                    toDict: {
-                        "additions": [{
-                            "name": "Alternatives",
-                            "value": alternativesString
-                        }]
-                    }
-                },
-            });
-        } else {
-            completion({
-                result: {
-                    from: query.detectFrom,
-                    to: query.detectTo,
-                    toParagraphs: resp.data.data.split('\n')
-                },
-            });
+            const mainTranslation = resp.data.data;
+            const additions = buildAlternatives(mainTranslation, resp.data.alternatives);
+            const result = {
+                from: resolveDetectedLang(resp.data.source_lang, query.detectFrom),
+                to: resolveDetectedLang(resp.data.target_lang, query.detectTo),
+                toParagraphs: mainTranslation.split('\n')
+            };
+
+        if ($option.alternatives == "1" && additions.length > 0) {
+            result.toDict = {
+                additions: [{
+                    name: "Alternatives",
+                    value: additions.join('\n')
+                }]
+            };
         }
+
+            completion({
+                result: result,
+            });
         }else if (statusCode === 406) {
             completion({
                 error: {
@@ -117,3 +136,6 @@ function translate(query, completion) {
 
 exports.supportLanguages = supportLanguages;
 exports.translate = translate;
+exports.__test__ = {
+    buildAlternatives: buildAlternatives
+};
