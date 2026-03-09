@@ -1,7 +1,7 @@
 {
     "identifier": "me.missuo.deeplx.translate",
     "category": "translate",
-    "version": "1.0.10",
+    "version": "1.0.11",
     "name": "DeepL X",
     "summary": "Plugin based on OwO-Network/DeepLX",
     "author": "missuo",
@@ -15,7 +15,7 @@
             "type": "text",
             "title": "API",
             "defaultValue": "http://localhost:1188/translate",
-            "desc": "如果你在本地部署了API，不要修改。",
+            "desc": "DeepLX 接口地址，支持填写多个地址，用英文逗号或换行分隔，插件会按顺序自动切换。",
             "textConfig": {
                 "type": "visible"
             }
@@ -26,6 +26,16 @@
             "title": "Token",
             "desc": "如果你在服务端没有设置，请留空。",
             "defaultValue": ""
+        },
+        {
+            "identifier": "timeout",
+            "type": "text",
+            "title": "Timeout",
+            "desc": "单个接口请求超时时间，单位秒，范围 3-30，默认 8。",
+            "defaultValue": "8",
+            "textConfig": {
+                "type": "visible"
+            }
         },
         {
             "identifier": "alternatives",
