@@ -75,6 +75,27 @@ test("buildParagraphs smart mode preserves list blocks", function() {
     );
 });
 
+test("buildParagraphs smart mode merges wrapped list continuations", function() {
+    assert.deepEqual(
+        helpers.buildParagraphs("How it works\n- When you solve it, we will review it with you, then we\nmove on.\n- Ask for a hint", "smart"),
+        [
+            "How it works",
+            "- When you solve it, we will review it with you, then we move on.\n- Ask for a hint"
+        ]
+    );
+});
+
+test("buildParagraphs smart mode does not merge after a completed list sentence", function() {
+    assert.deepEqual(
+        helpers.buildParagraphs("Summary\n- First item is complete.\nThis starts a new paragraph", "smart"),
+        [
+            "Summary",
+            "- First item is complete.",
+            "This starts a new paragraph"
+        ]
+    );
+});
+
 test("buildParagraphs smart mode preserves fenced code blocks", function() {
     assert.deepEqual(
         helpers.buildParagraphs("Example\n```bash\nnpm install\nnpm run dev\n```\nDone", "smart"),

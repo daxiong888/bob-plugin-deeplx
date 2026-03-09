@@ -92,6 +92,10 @@ function isListLine(trimmedLine) {
     return /^(?:[-*+•]\s+|\d+[.)]\s+|[a-zA-Z][.)]\s+|[-*+]\s+\[[ xX]\]\s+)/.test(trimmedLine);
 }
 
+function stripListMarker(text) {
+    return String(text || "").replace(/^(?:[-*+•]\s+|\d+[.)]\s+|[a-zA-Z][.)]\s+|[-*+]\s+\[[ xX]\]\s+)/, "");
+}
+
 function isUrlLine(trimmedLine) {
     return /^(?:(?:https?|ftp):\/\/|www\.)\S+$/i.test(trimmedLine);
 }
@@ -116,6 +120,33 @@ function getStructuredLineKind(trimmedLine) {
         return "url";
     }
     return null;
+}
+
+function endsWithSentenceBoundary(text) {
+    return /[.!?。！？;；:：)](?:["'”’》」』】）\]])*$/.test(String(text || "").trim());
+}
+
+function isLikelyListContinuation(previousLine, currentLine) {
+    const previousText = normalizeText(stripListMarker(previousLine));
+    const currentText = normalizeText(currentLine);
+
+    if (!previousText || !currentText || endsWithSentenceBoundary(previousText)) {
+        return false;
+    }
+
+    if (/^[a-z0-9(]/.test(currentText)) {
+        return true;
+    }
+
+    if (/^[,.;:!?)}\]"'”’]/.test(currentText)) {
+        return true;
+    }
+
+    if (/^[^\x00-\x7F]/.test(currentText) && previousText.length >= 18) {
+        return true;
+    }
+
+    return previousText.length >= 32 && currentText.length <= 32;
 }
 
 function buildParagraphs(text, mode) {
@@ -185,6 +216,15 @@ function buildParagraphs(text, mode) {
             }
             currentStructuredKind = structuredKind;
             currentStructuredBlock.push(preservedLine);
+            return;
+        }
+
+        if (
+            currentStructuredKind === "list" &&
+            currentStructuredBlock.length > 0 &&
+            isLikelyListContinuation(currentStructuredBlock[currentStructuredBlock.length - 1], trimmedLine)
+        ) {
+            currentStructuredBlock[currentStructuredBlock.length - 1] += " " + trimmedLine;
             return;
         }
 
@@ -431,8 +471,10 @@ exports.__test__ = {
     buildHeaders: buildHeaders,
     buildParagraphs: buildParagraphs,
     computePluginTimeout: computePluginTimeout,
+    endsWithSentenceBoundary: endsWithSentenceBoundary,
     getStructuredLineKind: getStructuredLineKind,
     isCommandLine: isCommandLine,
+    isLikelyListContinuation: isLikelyListContinuation,
     isListLine: isListLine,
     isUrlLine: isUrlLine,
     parseRequestTimeout: parseRequestTimeout,
