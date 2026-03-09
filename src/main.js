@@ -80,6 +80,42 @@ function buildHeaders(accessToken) {
     return headers;
 }
 
+function buildParagraphs(text, mode) {
+    const normalizedText = String(text || "").replace(/\r\n/g, "\n");
+    const renderMode = mode === "preserve" ? "format" : mode;
+    const lines = normalizedText.split("\n");
+    const hasContent = Boolean(normalizeText(normalizedText));
+
+    if (renderMode === "format") {
+        return hasContent ? [normalizedText] : [];
+    }
+
+    const paragraphs = [];
+    let currentParagraph = [];
+
+    lines.forEach(function(line) {
+        const trimmedLine = line.trim();
+        if (!trimmedLine) {
+            if (currentParagraph.length > 0) {
+                paragraphs.push(currentParagraph.join(" "));
+                currentParagraph = [];
+            }
+            return;
+        }
+        currentParagraph.push(trimmedLine);
+    });
+
+    if (currentParagraph.length > 0) {
+        paragraphs.push(currentParagraph.join(" "));
+    }
+
+    if (paragraphs.length > 0) {
+        return paragraphs;
+    }
+
+    return hasContent ? [normalizeText(normalizedText)] : [];
+}
+
 function resolveCompletion(query, completion) {
     if (query && typeof query.onCompletion === "function") {
         return query.onCompletion;
@@ -235,7 +271,7 @@ function buildTranslateResult(query, resp) {
     const result = {
         from: resolveDetectedLang(resp.data.source_lang, query.detectFrom),
         to: resolveDetectedLang(resp.data.target_lang, query.detectTo),
-        toParagraphs: mainTranslation.split('\n')
+        toParagraphs: buildParagraphs(mainTranslation, $option.lineBreakMode)
     };
 
     if ($option.alternatives == "1" && additions.length > 0) {
@@ -307,6 +343,7 @@ exports.pluginValidate = pluginValidate;
 exports.__test__ = {
     buildAlternatives: buildAlternatives,
     buildHeaders: buildHeaders,
+    buildParagraphs: buildParagraphs,
     computePluginTimeout: computePluginTimeout,
     parseRequestTimeout: parseRequestTimeout,
     parseUrls: parseUrls

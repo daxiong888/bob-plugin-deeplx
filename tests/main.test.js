@@ -53,3 +53,31 @@ test("buildHeaders omits empty auth token", function() {
         Authorization: "Bearer secret"
     });
 });
+
+test("buildParagraphs smart mode merges wrapped lines into paragraphs", function() {
+    assert.deepEqual(
+        helpers.buildParagraphs("First line\nsecond line\n\nThird block", "smart"),
+        [
+            "First line second line",
+            "Third block"
+        ]
+    );
+});
+
+test("buildParagraphs format mode preserves original line breaks in one item", function() {
+    assert.deepEqual(
+        helpers.buildParagraphs("First line\n- second line\n\nThird block", "format"),
+        [
+            "First line\n- second line\n\nThird block"
+        ]
+    );
+});
+
+test("buildParagraphs legacy preserve value maps to format mode", function() {
+    assert.deepEqual(
+        helpers.buildParagraphs("First line\nsecond line", "preserve"),
+        [
+            "First line\nsecond line"
+        ]
+    );
+});
