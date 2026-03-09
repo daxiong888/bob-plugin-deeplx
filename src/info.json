@@ -1,7 +1,7 @@
 {
     "identifier": "me.missuo.deeplx.translate",
     "category": "translate",
-    "version": "1.0.12",
+    "version": "1.0.13",
     "name": "DeepL X",
     "summary": "Plugin based on OwO-Network/DeepLX",
     "author": "missuo",
@@ -58,7 +58,7 @@
             "identifier": "lineBreakMode",
             "type": "menu",
             "title": "Render Mode",
-            "desc": "Smart Paragraphs 会合并 OCR 的碎行；Preserve Formatting 会按原始换行和列表结构显示。",
+            "desc": "Smart Paragraphs 会合并普通正文，但会保留列表、代码块、URL 和命令行；Preserve Formatting 会按原始换行和列表结构显示。",
             "defaultValue": "smart",
             "menuValues": [
                 {

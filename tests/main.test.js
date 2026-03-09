@@ -64,6 +64,50 @@ test("buildParagraphs smart mode merges wrapped lines into paragraphs", function
     );
 });
 
+test("buildParagraphs smart mode preserves list blocks", function() {
+    assert.deepEqual(
+        helpers.buildParagraphs("Intro line\n- First item\n- Second item\nClosing line", "smart"),
+        [
+            "Intro line",
+            "- First item\n- Second item",
+            "Closing line"
+        ]
+    );
+});
+
+test("buildParagraphs smart mode preserves fenced code blocks", function() {
+    assert.deepEqual(
+        helpers.buildParagraphs("Example\n```bash\nnpm install\nnpm run dev\n```\nDone", "smart"),
+        [
+            "Example",
+            "```bash\nnpm install\nnpm run dev\n```",
+            "Done"
+        ]
+    );
+});
+
+test("buildParagraphs smart mode preserves URL lines as their own block", function() {
+    assert.deepEqual(
+        helpers.buildParagraphs("Resources\nhttps://example.com/docs\nhttps://example.com/api\nRead more", "smart"),
+        [
+            "Resources",
+            "https://example.com/docs\nhttps://example.com/api",
+            "Read more"
+        ]
+    );
+});
+
+test("buildParagraphs smart mode preserves command lines as their own block", function() {
+    assert.deepEqual(
+        helpers.buildParagraphs("Run this\nnpm install\nnpm run dev\nDone", "smart"),
+        [
+            "Run this",
+            "npm install\nnpm run dev",
+            "Done"
+        ]
+    );
+});
+
 test("buildParagraphs format mode preserves original line breaks in one item", function() {
     assert.deepEqual(
         helpers.buildParagraphs("First line\n- second line\n\nThird block", "format"),

@@ -80,6 +80,44 @@ function buildHeaders(accessToken) {
     return headers;
 }
 
+function stripTrailingWhitespace(line) {
+    return String(line || "").replace(/\s+$/g, "");
+}
+
+function isCodeFenceLine(trimmedLine) {
+    return /^(?:```|~~~)/.test(trimmedLine);
+}
+
+function isListLine(trimmedLine) {
+    return /^(?:[-*+•]\s+|\d+[.)]\s+|[a-zA-Z][.)]\s+|[-*+]\s+\[[ xX]\]\s+)/.test(trimmedLine);
+}
+
+function isUrlLine(trimmedLine) {
+    return /^(?:(?:https?|ftp):\/\/|www\.)\S+$/i.test(trimmedLine);
+}
+
+function isCommandLine(trimmedLine) {
+    if (/^(?:\$|%|>)\s+\S+/.test(trimmedLine)) {
+        return true;
+    }
+
+    const lowerLine = trimmedLine.toLowerCase();
+    return /^(?:curl|wget|git|npm|pnpm|yarn|bun|npx|pip|pip3|python|python3|node|brew|docker|kubectl|make|cmake|go|cargo|java|javac|mvn|gradle|composer|bundle|rails|gem|uv|poetry|conda|ssh|scp|rsync|ffmpeg|ls|cd|cp|mv|mkdir|rm|cat|sed|awk|grep|rg|find|chmod|chown|sudo|export|source)\b/.test(lowerLine);
+}
+
+function getStructuredLineKind(trimmedLine) {
+    if (isListLine(trimmedLine)) {
+        return "list";
+    }
+    if (isCommandLine(trimmedLine)) {
+        return "command";
+    }
+    if (isUrlLine(trimmedLine)) {
+        return "url";
+    }
+    return null;
+}
+
 function buildParagraphs(text, mode) {
     const normalizedText = String(text || "").replace(/\r\n/g, "\n");
     const renderMode = mode === "preserve" ? "format" : mode;
@@ -92,22 +130,70 @@ function buildParagraphs(text, mode) {
 
     const paragraphs = [];
     let currentParagraph = [];
+    let currentStructuredBlock = [];
+    let currentStructuredKind = null;
+    let inCodeBlock = false;
+
+    function flushParagraph() {
+        if (currentParagraph.length > 0) {
+            paragraphs.push(currentParagraph.join(" "));
+            currentParagraph = [];
+        }
+    }
+
+    function flushStructuredBlock() {
+        if (currentStructuredBlock.length > 0) {
+            paragraphs.push(currentStructuredBlock.join("\n"));
+            currentStructuredBlock = [];
+            currentStructuredKind = null;
+        }
+    }
 
     lines.forEach(function(line) {
+        const preservedLine = stripTrailingWhitespace(line);
         const trimmedLine = line.trim();
-        if (!trimmedLine) {
-            if (currentParagraph.length > 0) {
-                paragraphs.push(currentParagraph.join(" "));
-                currentParagraph = [];
+
+        if (inCodeBlock) {
+            currentStructuredBlock.push(preservedLine);
+            if (isCodeFenceLine(trimmedLine)) {
+                flushStructuredBlock();
+                inCodeBlock = false;
             }
             return;
         }
+
+        if (!trimmedLine) {
+            flushParagraph();
+            flushStructuredBlock();
+            return;
+        }
+
+        if (isCodeFenceLine(trimmedLine)) {
+            flushParagraph();
+            flushStructuredBlock();
+            currentStructuredKind = "code";
+            currentStructuredBlock.push(preservedLine);
+            inCodeBlock = true;
+            return;
+        }
+
+        const structuredKind = getStructuredLineKind(trimmedLine);
+        if (structuredKind) {
+            flushParagraph();
+            if (currentStructuredKind && currentStructuredKind !== structuredKind) {
+                flushStructuredBlock();
+            }
+            currentStructuredKind = structuredKind;
+            currentStructuredBlock.push(preservedLine);
+            return;
+        }
+
+        flushStructuredBlock();
         currentParagraph.push(trimmedLine);
     });
 
-    if (currentParagraph.length > 0) {
-        paragraphs.push(currentParagraph.join(" "));
-    }
+    flushParagraph();
+    flushStructuredBlock();
 
     if (paragraphs.length > 0) {
         return paragraphs;
@@ -345,6 +431,10 @@ exports.__test__ = {
     buildHeaders: buildHeaders,
     buildParagraphs: buildParagraphs,
     computePluginTimeout: computePluginTimeout,
+    getStructuredLineKind: getStructuredLineKind,
+    isCommandLine: isCommandLine,
+    isListLine: isListLine,
+    isUrlLine: isUrlLine,
     parseRequestTimeout: parseRequestTimeout,
     parseUrls: parseUrls
 };
