@@ -151,7 +151,7 @@ async function aiPostEdit(rawText, query) {
         header: {
             "Content-Type": "application/json",
             "Authorization": "Bearer " + apiKey,
-            "HTTP-Referer": "https://github.com/missuo/bob-plugin-deeplx",
+            "HTTP-Referer": "https://github.com/daxiong888/bob-plugin-deeplx",
             "X-Title": "Bob DeepLX Plugin"
         },
         body: {

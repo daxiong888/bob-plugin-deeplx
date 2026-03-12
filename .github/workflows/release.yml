@@ -22,7 +22,7 @@ jobs:
           files: |
             dist/*.bobplugin
         env:
-          GITHUB_TOKEN: ${{ secrets.GT_Token }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
       - run: rm -rf dist
 

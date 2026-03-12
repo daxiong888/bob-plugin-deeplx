@@ -43,7 +43,7 @@ async function callOpenRouter(prompt) {
         headers: {
             "Content-Type": "application/json",
             "Authorization": "Bearer " + API_KEY,
-            "HTTP-Referer": "https://github.com/missuo/bob-plugin-deeplx",
+            "HTTP-Referer": "https://github.com/daxiong888/bob-plugin-deeplx",
             "X-Title": "Bob DeepLX Plugin (integration test)"
         },
         body: JSON.stringify({

@@ -15,7 +15,7 @@ zip -r -j bob-plugin-deeplx-$version.bobplugin src/*
 sha256_deeplx=$(sha256sum bob-plugin-deeplx-$version.bobplugin | cut -d ' ' -f 1)
 echo $sha256_deeplx
 
-download_link="https://github.com/missuo/bob-plugin-deeplx/releases/download/v$version/bob-plugin-deeplx-$version.bobplugin"
+download_link="https://github.com/daxiong888/bob-plugin-deeplx/releases/download/v$version/bob-plugin-deeplx-$version.bobplugin"
 
 new_version="{\"version\": \"$version\", \"desc\": \"Support access token.\", \"sha256\": \"$sha256_deeplx\", \"url\": \"$download_link\", \"minBobVersion\": \"0.5.0\"}"
 
