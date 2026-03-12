@@ -14,6 +14,9 @@ var MIN_REQUEST_TIMEOUT = 3;
 var MAX_REQUEST_TIMEOUT = 30;
 var MIN_PLUGIN_TIMEOUT = 30;
 var MAX_PLUGIN_TIMEOUT = 300;
+var DEFAULT_AI_TIMEOUT = 10;
+var AI_OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+var DEFAULT_AI_MODEL = "google/gemini-2.5-flash-lite";
 
 function supportLanguages() {
     return lang.supportedLanguages.map(([standardLang]) => standardLang);
@@ -67,6 +70,123 @@ function parseRequestTimeout(rawValue) {
 function computePluginTimeout(urlCount, requestTimeoutSeconds) {
     const timeout = requestTimeoutSeconds * Math.max(urlCount, 1) + 5;
     return Math.max(MIN_PLUGIN_TIMEOUT, Math.min(MAX_PLUGIN_TIMEOUT, timeout));
+}
+
+function resolveAiModel(rawModel) {
+    const m = String(rawModel || "").trim();
+    return m || DEFAULT_AI_MODEL;
+}
+
+function buildAiPrompt(mode, text, fromLang, toLang) {
+    const langLine = (fromLang && toLang)
+        ? "- Source language: " + fromLang + ", Target language: " + toLang
+        : "";
+
+    if (mode === "auto") {
+        return {
+            system: "You are an expert bilingual editor specializing in post-editing machine translation output.",
+            user: [
+                "Post-edit the machine-translated text below for accuracy and naturalness.",
+                "- Fix mistranslations and ensure the original meaning is accurately conveyed",
+                "- Correct unnatural expressions, stiff phrasing, and awkward word order",
+                "- Use idiomatic expressions natural to the target language",
+                "- Fix OCR line-break errors if present (merge soft wraps, preserve paragraph breaks)",
+                "- Do NOT touch: URLs, code blocks, inline code, command-line strings, file paths",
+                "- Preserve all list and heading structures",
+                "- Keep specialized terms and proper nouns unchanged",
+                "- Prefer minimal changes: only edit where clearly needed",
+                langLine,
+                "- If the text is already accurate and natural, return it unchanged",
+                "- Output the improved text only, no commentary or explanation",
+                "",
+                "TEXT:",
+                text
+            ].filter(Boolean).join("\n")
+        };
+    }
+
+    return {
+        system: "You are a professional translator and editor. Refine machine translation output to read as if originally written in the target language.",
+        user: [
+            "Refine the machine-translated text below to native-level quality.",
+            "- Ensure the original meaning is faithfully preserved",
+            "- Restructure sentences for natural flow in the target language",
+            "- Replace literal or mechanical phrasing with idiomatic expressions",
+            "- Fix OCR line-break errors if present (merge soft wraps, preserve paragraph breaks)",
+            "- Do NOT touch: URLs, code blocks, inline code, command-line strings, file paths",
+            "- Preserve all list and heading structures",
+            "- Keep specialized terms and proper nouns unchanged",
+            langLine,
+            "- Output the refined text only, no commentary or explanation",
+            "",
+            "TEXT:",
+            text
+        ].filter(Boolean).join("\n")
+    };
+}
+
+async function aiPostEdit(rawText, query) {
+    const mode = $option.aiPostProcess;
+    if (!mode || mode === "off") {
+        return rawText;
+    }
+
+    if (rawText.trim().length <= 20) {
+        return rawText;
+    }
+
+    const apiKey = String($option.aiApiKey || "").trim();
+    if (!apiKey) {
+        return rawText;
+    }
+
+    const model = resolveAiModel($option.aiModel);
+    const fromLang = query.from === "auto" ? query.detectFrom : query.from;
+    const toLang = query.to === "auto" ? query.detectTo : query.to;
+    const prompt = buildAiPrompt(mode, rawText, fromLang, toLang);
+
+    const resp = await $http.request({
+        method: "POST",
+        url: AI_OPENROUTER_URL,
+        header: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + apiKey,
+            "HTTP-Referer": "https://github.com/missuo/bob-plugin-deeplx",
+            "X-Title": "Bob DeepLX Plugin"
+        },
+        body: {
+            model: model,
+            messages: [
+                { role: "system", content: prompt.system },
+                { role: "user", content: prompt.user }
+            ],
+            temperature: 0.1,
+            max_tokens: 2048
+        },
+        timeout: DEFAULT_AI_TIMEOUT
+    });
+
+    if (resp && resp.error) {
+        throw new Error(resp.error.localizedDescription || "AI API network error");
+    }
+
+    const statusCode = resp && resp.response ? resp.response.statusCode : 0;
+    if (statusCode !== 200) {
+        throw new Error("AI API returned status " + statusCode);
+    }
+
+    const content = (
+        resp.data &&
+        resp.data.choices &&
+        resp.data.choices[0] &&
+        resp.data.choices[0].message &&
+        resp.data.choices[0].message.content
+    );
+    if (!content || !content.trim()) {
+        throw new Error("AI API returned empty content");
+    }
+
+    return content.trim();
 }
 
 function buildHeaders(accessToken) {
@@ -126,6 +246,23 @@ function endsWithSentenceBoundary(text) {
     return /[.!?。！？;；:：)](?:["'”’》」』】）\]])*$/.test(String(text || "").trim());
 }
 
+function looksLikeOcrText(text) {
+    var lines = String(text || "").split("\n");
+    var contentLines = lines.filter(function(l) { return l.trim(); });
+    if (contentLines.length < 3) {
+        return false;
+    }
+    var continuationPairs = 0;
+    for (var i = 0; i < contentLines.length - 1; i++) {
+        var current = contentLines[i].trim();
+        var next = contentLines[i + 1].trim();
+        if (!endsWithSentenceBoundary(current) && /^[a-z(]/.test(next)) {
+            continuationPairs++;
+        }
+    }
+    return continuationPairs / (contentLines.length - 1) >= 0.3;
+}
+
 function isLikelyListContinuation(previousLine, currentLine) {
     const previousText = normalizeText(stripListMarker(previousLine));
     const currentText = normalizeText(currentLine);
@@ -138,7 +275,7 @@ function isLikelyListContinuation(previousLine, currentLine) {
         return true;
     }
 
-    if (/^[,.;:!?)}\]"'”’]/.test(currentText)) {
+    if (/^[,.;:!?)}\]"'"']/.test(currentText)) {
         return true;
     }
 
@@ -391,9 +528,11 @@ async function requestTranslation(payload, requestConfig) {
     );
 }
 
-function buildTranslateResult(query, resp) {
-    const mainTranslation = resp.data.data;
-    const additions = buildAlternatives(mainTranslation, resp.data.alternatives);
+function buildTranslateResult(query, resp, overrideText) {
+    const mainTranslation = (overrideText !== undefined && overrideText !== null)
+        ? overrideText
+        : resp.data.data;
+    const additions = buildAlternatives(resp.data.data, resp.data.alternatives);
     const result = {
         from: resolveDetectedLang(resp.data.source_lang, query.detectFrom),
         to: resolveDetectedLang(resp.data.target_lang, query.detectTo),
@@ -419,8 +558,14 @@ function translate(query, completion) {
 
     (async function() {
         const resp = await requestTranslation(requestPayload, requestConfig);
+        let processedText = resp.data.data;
+        try {
+            processedText = await aiPostEdit(resp.data.data, query);
+        } catch (e) {
+            // silent fallback: use original DeepLX result
+        }
         done({
-            result: buildTranslateResult(query, resp)
+            result: buildTranslateResult(query, resp, processedText)
         });
     })().catch(function(err) {
         done({
@@ -434,7 +579,13 @@ function translate(query, completion) {
 }
 
 function pluginTimeoutInterval() {
-    return computePluginTimeout(parseUrls($option.url).length, parseRequestTimeout($option.timeout));
+    const base = computePluginTimeout(parseUrls($option.url).length, parseRequestTimeout($option.timeout));
+    const aiMode = $option.aiPostProcess;
+    const hasAiKey = Boolean(String($option.aiApiKey || "").trim());
+    if (aiMode && aiMode !== "off" && hasAiKey) {
+        return Math.min(base + DEFAULT_AI_TIMEOUT + 5, MAX_PLUGIN_TIMEOUT);
+    }
+    return base;
 }
 
 function pluginValidate(completion) {
@@ -467,6 +618,7 @@ exports.translate = translate;
 exports.pluginTimeoutInterval = pluginTimeoutInterval;
 exports.pluginValidate = pluginValidate;
 exports.__test__ = {
+    buildAiPrompt: buildAiPrompt,
     buildAlternatives: buildAlternatives,
     buildHeaders: buildHeaders,
     buildParagraphs: buildParagraphs,
@@ -477,6 +629,8 @@ exports.__test__ = {
     isLikelyListContinuation: isLikelyListContinuation,
     isListLine: isListLine,
     isUrlLine: isUrlLine,
+    looksLikeOcrText: looksLikeOcrText,
     parseRequestTimeout: parseRequestTimeout,
-    parseUrls: parseUrls
+    parseUrls: parseUrls,
+    resolveAiModel: resolveAiModel
 };

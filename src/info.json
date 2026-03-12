@@ -70,6 +70,44 @@
                     "value": "format"
                 }
             ]
+        },
+        {
+            "identifier": "aiPostProcess",
+            "type": "menu",
+            "title": "AI Post-Process",
+            "desc": "对 DeepLX 译文进行 AI 二次处理（需填写 AI API Key）。Translation Polish 修正翻译中的错译和不自然表达；Full Refine 更大幅度地润色重组，使译文接近母语表达。两种模式均会自动修复 OCR 断行。短文本自动跳过 AI 处理。失败时自动回退原始译文。",
+            "defaultValue": "off",
+            "menuValues": [
+                {
+                    "title": "关闭",
+                    "value": "off"
+                },
+                {
+                    "title": "Translation Polish",
+                    "value": "auto"
+                },
+                {
+                    "title": "Full Refine",
+                    "value": "polish"
+                }
+            ]
+        },
+        {
+            "identifier": "aiApiKey",
+            "type": "text",
+            "title": "AI API Key",
+            "desc": "OpenRouter API Key（在 openrouter.ai 获取）。仅 AI Post-Process 开启时需要填写。",
+            "defaultValue": ""
+        },
+        {
+            "identifier": "aiModel",
+            "type": "text",
+            "title": "AI Model",
+            "desc": "留空使用默认模型 google/gemini-2.5-flash-lite。可在 openrouter.ai/models 查看完整模型列表。",
+            "defaultValue": "",
+            "textConfig": {
+                "type": "visible"
+            }
         }
     ]
 }

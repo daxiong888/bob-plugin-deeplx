@@ -146,3 +146,47 @@ test("buildParagraphs legacy preserve value maps to format mode", function() {
         ]
     );
 });
+
+test("resolveAiModel returns default when empty or blank", function() {
+    assert.equal(helpers.resolveAiModel(""), "google/gemini-2.5-flash-lite");
+    assert.equal(helpers.resolveAiModel("  "), "google/gemini-2.5-flash-lite");
+    assert.equal(helpers.resolveAiModel(null), "google/gemini-2.5-flash-lite");
+    assert.equal(helpers.resolveAiModel("openai/gpt-4o-mini"), "openai/gpt-4o-mini");
+});
+
+test("buildAiPrompt auto mode produces translation polish prompt", function() {
+    const result = helpers.buildAiPrompt("auto", "some text", "en", "zh-Hans");
+    assert.ok(typeof result.system === "string");
+    assert.ok(typeof result.user === "string");
+    assert.ok(result.system.includes("post-editing machine translation"));
+    assert.ok(result.user.includes("accuracy"));
+    assert.ok(result.user.includes("naturalness"));
+    assert.ok(result.user.includes("minimal changes"));
+    assert.ok(result.user.includes("some text"));
+    assert.ok(result.user.includes("zh-Hans"));
+});
+
+test("buildAiPrompt polish mode produces full refine prompt", function() {
+    const result = helpers.buildAiPrompt("polish", "some text", "en", "zh-Hans");
+    assert.ok(typeof result.system === "string");
+    assert.ok(typeof result.user === "string");
+    assert.ok(result.system.includes("originally written in the target language"));
+    assert.ok(result.user.includes("native-level"));
+    assert.ok(result.user.includes("idiomatic"));
+    assert.ok(!result.user.includes("minimal changes"));
+    assert.ok(result.user.includes("some text"));
+    assert.ok(result.user.includes("zh-Hans"));
+});
+
+test("buildAiPrompt omits lang line when langs are empty", function() {
+    const result = helpers.buildAiPrompt("auto", "text", "", "");
+    assert.ok(!result.user.includes("Source language"));
+});
+
+test("buildAiPrompt text appears at end after TEXT: marker", function() {
+    const result = helpers.buildAiPrompt("auto", "hello world", "en", "zh-Hans");
+    const lines = result.user.split("\n");
+    const textIdx = lines.indexOf("TEXT:");
+    assert.ok(textIdx !== -1);
+    assert.equal(lines[textIdx + 1], "hello world");
+});
