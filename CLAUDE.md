@@ -57,4 +57,19 @@ Bob plugins use **CommonJS modules** (`require`/`exports`) and must be **ES5-com
 
 ## Release Process
 
-Releases are automated via GitHub Actions on `v*` tags. The workflow runs `release.sh` which zips `src/*` into a `.bobplugin` file, computes SHA256, and updates `appcast.json`.
+Releases are automated via GitHub Actions (`.github/workflows/release.yml`). Push a `v*` tag to trigger:
+
+```bash
+git tag v2.0.1
+git push origin v2.0.1
+```
+
+The workflow runs `release.sh` which:
+1. Zips `src/*` into a versioned `.bobplugin` file
+2. Computes SHA256 checksum
+3. Creates a GitHub Release with the `.bobplugin` as download asset
+4. Appends the new version entry to `appcast.json` and auto-commits back to `main`
+
+Bob uses `appcast.json` (referenced in `info.json` → `appcast` field) to check for plugin updates. The `identifier` in `appcast.json` must match `info.json`.
+
+Repository: `daxiong888/bob-plugin-deeplx` (forked from `missuo/bob-plugin-deeplx`).
