@@ -17,7 +17,7 @@ echo $sha256_deeplx
 
 download_link="https://github.com/daxiong888/bob-plugin-deeplx/releases/download/v$version/bob-plugin-deeplx-$version.bobplugin"
 
-new_version="{\"version\": \"$version\", \"desc\": \"Support access token.\", \"sha256\": \"$sha256_deeplx\", \"url\": \"$download_link\", \"minBobVersion\": \"0.5.0\"}"
+new_version="{\"version\": \"$version\", \"desc\": \"v$version\", \"sha256\": \"$sha256_deeplx\", \"url\": \"$download_link\", \"minBobVersion\": \"0.5.0\"}"
 
 json_file='appcast.json'
 json_data=$(cat $json_file)
